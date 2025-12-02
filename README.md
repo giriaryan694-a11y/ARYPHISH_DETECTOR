@@ -58,12 +58,8 @@ It uses **multiple LLMs** to inspect a website in real time — a huge advantage
 
 ## 📸 Screenshots
 
-**Main Interface**
-
-**Analysis Results**
-
-(Insert your images here)
-
+<img src="screenshots/screenshot1.png">
+<img src="screenshots/screenshot2.png">
 ---
 
 ## 🚀 Features

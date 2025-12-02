@@ -90,7 +90,7 @@ It uses **multiple LLMs** to inspect a website in real time — a huge advantage
 ### 1. Clone the Repository
 ```
 git clone https://github.com/giriaryan694-a11y/ARYPHISH_DETECTOR.git
-cd ARY-PHISH-DETECTOR
+cd ARYPHISH-DETECTOR
 ```
 ### 2. Create and Activate Virtual Environment
 

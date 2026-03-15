@@ -393,36 +393,60 @@ async def analyze_with_openai(user_prompt: str, system_prompt: str) -> str:
         return f"Error during OpenAI analysis: {e}"
 
 
-# Free model fallback chain — tried in order if previous is rate-limited (429)
+# Free model fallback chain — tried in order on 429 or 404
+# openrouter/free is OpenRouter's own auto-router (picks best available free model dynamically)
+# It's the most reliable first choice since it never goes 404
 OPENROUTER_FREE_MODELS = [
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "google/gemma-3-27b-it:free",
-    "deepseek/deepseek-r1:free",
-    "mistralai/mistral-7b-instruct:free",
-    "nousresearch/hermes-3-llama-3.1-405b:free",
-    "microsoft/phi-3-mini-128k-instruct:free",
+    "openrouter/auto",                              # OpenRouter auto-router (free tier)
+    "meta-llama/llama-3.3-70b-instruct:free",       # Llama 3.3 70B
+    "google/gemma-3-27b-it:free",                   # Gemma 3 27B
+    "mistralai/mistral-7b-instruct:free",            # Mistral 7B
+    "qwen/qwen3-8b:free",                           # Qwen3 8B
+    "microsoft/phi-3-mini-128k-instruct:free",       # Phi-3 Mini
 ]
+
+def _is_retryable_error(err_str: str) -> bool:
+    """Returns True if the error warrants trying the next model in the chain."""
+    retryable_codes = ["429", "404", "503", "502"]
+    retryable_phrases = [
+        "rate", "rate-limited", "no endpoints", "temporarily",
+        "unavailable", "overloaded", "capacity", "upstream"
+    ]
+    if any(code in err_str for code in retryable_codes):
+        return True
+    if any(phrase in err_str.lower() for phrase in retryable_phrases):
+        return True
+    return False
 
 async def analyze_with_openrouter(user_prompt: str, system_prompt: str) -> str:
     """
-    Free-tier LLM via OpenRouter with automatic fallback chain.
-    If the preferred model is rate-limited (429), tries the next free model
-    in OPENROUTER_FREE_MODELS until one succeeds.
+    Free-tier LLM via OpenRouter with smart fallback chain.
 
-    Get your free key at: https://openrouter.ai/
-    Override default model in keys.txt: OPENROUTER_MODEL=google/gemma-3-27b-it:free
+    Strategy:
+    1. Try openrouter/auto first — OpenRouter's own free router, never goes 404
+    2. If that fails (429/503), fall through the OPENROUTER_FREE_MODELS list
+    3. Skip any model that returns 429 (rate-limit) or 404 (no endpoint / deprecated)
+    4. Return a clean error if all models are exhausted
+
+    Get your free key at: https://openrouter.ai/ (no credit card needed)
+    Override default in keys.txt: OPENROUTER_MODEL=google/gemma-3-27b-it:free
     """
     if not openrouter_client:
         return "Error: OpenRouter client is not configured. Add OPENROUTER_API=your_key to keys.txt"
 
-    # Build fallback list: preferred model first, then the rest
-    preferred = openrouter_model or OPENROUTER_FREE_MODELS[0]
-    fallback_chain = [preferred] + [m for m in OPENROUTER_FREE_MODELS if m != preferred]
+    # Build chain: user's preferred model first (if set), then auto-router, then manual fallbacks
+    preferred = openrouter_model  # from keys.txt OPENROUTER_MODEL= or None
+    auto_router = "openrouter/auto"
+
+    if preferred and preferred != auto_router:
+        fallback_chain = [preferred, auto_router] + [m for m in OPENROUTER_FREE_MODELS if m not in (preferred, auto_router)]
+    else:
+        fallback_chain = [auto_router] + [m for m in OPENROUTER_FREE_MODELS if m != auto_router]
 
     last_error = None
     for model in fallback_chain:
         try:
-            print(f"{Fore.CYAN}  [OpenRouter] Trying model: {model}")
+            print(f"{Fore.CYAN}  [OpenRouter] Trying: {model}")
             response = await openrouter_client.chat.completions.create(
                 model=model,
                 messages=[
@@ -432,21 +456,33 @@ async def analyze_with_openrouter(user_prompt: str, system_prompt: str) -> str:
                 temperature=0.1,
             )
             result = response.choices[0].message.content
+
+            # Some models return empty content — treat as failure and retry
+            if not result or not result.strip():
+                print(f"{Fore.YELLOW}  [OpenRouter] Empty response from {model}, trying next...")
+                last_error = Exception("Empty response")
+                continue
+
             print(f"{Fore.GREEN}  [OpenRouter] ✓ Success with: {model}")
-            # Prepend which model actually answered — useful for the UI header
+            # Embed model name so UI card header shows actual model used
             return "__model__:" + model + "\n" + result
+
         except Exception as e:
             err_str = str(e)
-            if "429" in err_str or "rate" in err_str.lower() or "rate-limited" in err_str.lower():
-                print(f"{Fore.YELLOW}  [OpenRouter] 429 rate-limit on {model}, trying next...")
+            if _is_retryable_error(err_str):
+                reason = "429 rate-limit" if "429" in err_str else "404 no endpoint" if "404" in err_str else "upstream error"
+                print(f"{Fore.YELLOW}  [OpenRouter] {reason} on {model}, trying next...")
                 last_error = e
                 continue
             else:
-                # Non-rate-limit error — don't bother retrying other models
-                print(f"{Fore.RED}  [OpenRouter] Non-retryable error on {model}: {e}")
+                print(f"{Fore.RED}  [OpenRouter] Fatal error on {model}: {e}")
                 return f"Error during OpenRouter analysis: {e}"
 
-    return f"Error: All OpenRouter free models are currently rate-limited. Try again in a minute.\nLast error: {last_error}"
+    return (
+        f"Error: All OpenRouter free models are currently unavailable (rate-limited or no endpoints).\n"
+        f"Try again in a minute, or set a specific model in keys.txt via OPENROUTER_MODEL=\n"
+        f"Last error: {last_error}"
+    )
 
 
 # ==============================================================================

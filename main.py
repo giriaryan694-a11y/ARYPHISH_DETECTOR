@@ -393,32 +393,60 @@ async def analyze_with_openai(user_prompt: str, system_prompt: str) -> str:
         return f"Error during OpenAI analysis: {e}"
 
 
+# Free model fallback chain — tried in order if previous is rate-limited (429)
+OPENROUTER_FREE_MODELS = [
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "google/gemma-3-27b-it:free",
+    "deepseek/deepseek-r1:free",
+    "mistralai/mistral-7b-instruct:free",
+    "nousresearch/hermes-3-llama-3.1-405b:free",
+    "microsoft/phi-3-mini-128k-instruct:free",
+]
+
 async def analyze_with_openrouter(user_prompt: str, system_prompt: str) -> str:
     """
-    Free-tier LLM via OpenRouter (no credit card needed).
-    Get your free key at: https://openrouter.ai/
-    Default model: meta-llama/llama-3.3-70b-instruct:free
+    Free-tier LLM via OpenRouter with automatic fallback chain.
+    If the preferred model is rate-limited (429), tries the next free model
+    in OPENROUTER_FREE_MODELS until one succeeds.
 
-    Other free models you can set via OPENROUTER_MODEL= in keys.txt:
-      google/gemma-3-27b-it:free
-      deepseek/deepseek-r1:free
-      mistralai/mistral-7b-instruct:free
-      nousresearch/hermes-3-llama-3.1-405b:free
+    Get your free key at: https://openrouter.ai/
+    Override default model in keys.txt: OPENROUTER_MODEL=google/gemma-3-27b-it:free
     """
     if not openrouter_client:
         return "Error: OpenRouter client is not configured. Add OPENROUTER_API=your_key to keys.txt"
-    try:
-        response = await openrouter_client.chat.completions.create(
-            model=openrouter_model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.1,
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        return f"Error during OpenRouter ({openrouter_model}) analysis: {e}"
+
+    # Build fallback list: preferred model first, then the rest
+    preferred = openrouter_model or OPENROUTER_FREE_MODELS[0]
+    fallback_chain = [preferred] + [m for m in OPENROUTER_FREE_MODELS if m != preferred]
+
+    last_error = None
+    for model in fallback_chain:
+        try:
+            print(f"{Fore.CYAN}  [OpenRouter] Trying model: {model}")
+            response = await openrouter_client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.1,
+            )
+            result = response.choices[0].message.content
+            print(f"{Fore.GREEN}  [OpenRouter] ✓ Success with: {model}")
+            # Prepend which model actually answered — useful for the UI header
+            return "__model__:" + model + "\n" + result
+        except Exception as e:
+            err_str = str(e)
+            if "429" in err_str or "rate" in err_str.lower() or "rate-limited" in err_str.lower():
+                print(f"{Fore.YELLOW}  [OpenRouter] 429 rate-limit on {model}, trying next...")
+                last_error = e
+                continue
+            else:
+                # Non-rate-limit error — don't bother retrying other models
+                print(f"{Fore.RED}  [OpenRouter] Non-retryable error on {model}: {e}")
+                return f"Error during OpenRouter analysis: {e}"
+
+    return f"Error: All OpenRouter free models are currently rate-limited. Try again in a minute.\nLast error: {last_error}"
 
 
 # ==============================================================================
@@ -1037,9 +1065,18 @@ function renderResults(data) {
         document.getElementById('chatgptCard').style.display = 'block';
     }
     if (data.openrouter) {
-        const modelLabel = data.openrouter_model ? data.openrouter_model.split('/').pop().toUpperCase() : 'FREE MODEL';
+        let orText = data.openrouter;
+        let modelLabel = data.openrouter_model ? data.openrouter_model.split('/').pop().toUpperCase() : 'FREE MODEL';
+
+        // Extract __model__: prefix injected by fallback chain
+        const modelPrefixMatch = orText.match(/^__model__:([^\n]+)\n/);
+        if (modelPrefixMatch) {
+            modelLabel = modelPrefixMatch[1].split('/').pop().toUpperCase();
+            orText = orText.replace(/^__model__:[^\n]+\n/, '');
+        }
+
         document.getElementById('openrouterHeader').textContent = '// OPENROUTER — ' + modelLabel;
-        document.getElementById('openrouterBody').innerHTML = formatAIResult(data.openrouter);
+        document.getElementById('openrouterBody').innerHTML = formatAIResult(orText);
         document.getElementById('openrouterCard').style.display = 'block';
     }
     document.getElementById('resultsSection').style.display = 'block';

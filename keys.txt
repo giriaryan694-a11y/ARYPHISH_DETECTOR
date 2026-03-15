@@ -1,26 +1,57 @@
-# ARYPHISH_DETECTOR — API Keys Configuration
-# ============================================
-# Add your keys below. At least ONE is required.
-# Lines starting with # are ignored.
+# ============================================================
+#   ARYPHISH_DETECTOR — API Keys Configuration
+#   Edit this file, then run: python main.py
+# ============================================================
+# Rules:
+#   - At least ONE key is required to run the tool
+#   - Lines starting with # are ignored
+#   - No spaces around the = sign
+# ============================================================
 
-# --- Option 1: Google Gemini (free tier available) ---
-# Get key at: https://aistudio.google.com/app/apikey
-# GEMINI_API=your_gemini_key_here
 
-# --- Option 2: OpenAI ChatGPT (paid) ---
-# Get key at: https://platform.openai.com/api-keys
-# CHATGPT_API=your_openai_key_here
-
-# --- Option 3: OpenRouter (FREE tier — no credit card needed) ---
-# Get free key at: https://openrouter.ai/ → Sign up → Keys
-# Free models require NO credits. Just sign up and grab a key.
+# ── Option 1: OpenRouter (RECOMMENDED — 100% FREE) ──────────
+#
+#   ✅ No credit card needed
+#   ✅ Auto-fallback across 6+ free models if one is rate-limited
+#   ✅ Uses openrouter/auto router — never hits a dead endpoint
+#
+#   Sign up (30 seconds): https://openrouter.ai/
+#   Then: Dashboard → Keys → Create Key → Copy it below
+#
 OPENROUTER_API=your_openrouter_key_here
 
-# --- Optional: Override default OpenRouter free model ---
-# Default is: meta-llama/llama-3.3-70b-instruct:free
-# Other free options:
-#   google/gemma-3-27b-it:free
-#   deepseek/deepseek-r1:free
-#   mistralai/mistral-7b-instruct:free
-#   nousresearch/hermes-3-llama-3.1-405b:free
+#   Optional — pin a specific free model instead of auto-routing.
+#   Leave commented out to use the smart auto-router (recommended).
+#
+#   Currently working free models (as of 2026):
+#     openrouter/auto                              ← auto-picks best free model
+#     meta-llama/llama-3.3-70b-instruct:free       ← Llama 3.3 70B
+#     google/gemma-3-27b-it:free                   ← Gemma 3 27B
+#     mistralai/mistral-7b-instruct:free            ← Mistral 7B
+#     qwen/qwen3-8b:free                           ← Qwen3 8B
+#     microsoft/phi-3-mini-128k-instruct:free       ← Phi-3 Mini
+#
 # OPENROUTER_MODEL=google/gemma-3-27b-it:free
+
+
+# ── Option 2: Google Gemini (Free tier available) ───────────
+#
+#   ✅ Generous free quota
+#   Sign up: https://aistudio.google.com/app/apikey
+#
+# GEMINI_API=your_gemini_key_here
+
+
+# ── Option 3: OpenAI ChatGPT (Paid) ─────────────────────────
+#
+#   💳 Requires a paid account
+#   Sign up: https://platform.openai.com/api-keys
+#
+# CHATGPT_API=your_openai_key_here
+
+
+# ============================================================
+#  ⚠️  SECURITY WARNING
+#  Never commit this file with real keys to a public repo!
+#  Add "keys.txt" to your .gitignore right now if you haven't.
+# ============================================================

@@ -1,2 +1,26 @@
-GEMINI_API=YOUR_GEMINI_API_KEY_HERE
-CHATGPT_API=YOUR_OPENAI_API_KEY_HERE
+# ARYPHISH_DETECTOR — API Keys Configuration
+# ============================================
+# Add your keys below. At least ONE is required.
+# Lines starting with # are ignored.
+
+# --- Option 1: Google Gemini (free tier available) ---
+# Get key at: https://aistudio.google.com/app/apikey
+# GEMINI_API=your_gemini_key_here
+
+# --- Option 2: OpenAI ChatGPT (paid) ---
+# Get key at: https://platform.openai.com/api-keys
+# CHATGPT_API=your_openai_key_here
+
+# --- Option 3: OpenRouter (FREE tier — no credit card needed) ---
+# Get free key at: https://openrouter.ai/ → Sign up → Keys
+# Free models require NO credits. Just sign up and grab a key.
+OPENROUTER_API=your_openrouter_key_here
+
+# --- Optional: Override default OpenRouter free model ---
+# Default is: meta-llama/llama-3.3-70b-instruct:free
+# Other free options:
+#   google/gemma-3-27b-it:free
+#   deepseek/deepseek-r1:free
+#   mistralai/mistral-7b-instruct:free
+#   nousresearch/hermes-3-llama-3.1-405b:free
+# OPENROUTER_MODEL=google/gemma-3-27b-it:free

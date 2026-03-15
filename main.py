@@ -853,9 +853,11 @@ HTML_TEMPLATE = r"""
             <div>
                 <label>AI ENGINE</label>
                 <select id="aiChoice">
-                    <option value="both" selected>Both (Gemini + ChatGPT)</option>
+                    <option value="all">All Three AIs</option>
+                    <option value="both" selected>Gemini + ChatGPT</option>
                     <option value="gemini">Gemini Only</option>
                     <option value="chatgpt">ChatGPT Only</option>
+                    <option value="openrouter">OpenRouter (Free 🆓)</option>
                 </select>
             </div>
             <div style="display:flex;align-items:flex-end;">

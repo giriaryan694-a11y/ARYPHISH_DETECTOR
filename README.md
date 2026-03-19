@@ -246,16 +246,6 @@ venv/
 
 ---
 
-## 🗺️ Roadmap
-
-- [ ] VirusTotal API integration for URL reputation scoring
-- [ ] Screenshot capture of analyzed pages (Playwright)
-- [ ] Export reports as PDF / JSON
-- [ ] Batch URL analysis from CSV input
-- [ ] Browser extension wrapper
-- [ ] Discord / Telegram bot integration
-- [ ] Docker support
-
 ---
 
 ## 📄 License
